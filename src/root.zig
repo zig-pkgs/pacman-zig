@@ -103,11 +103,16 @@ pub const Pacman = struct {
         _ = c.config_free(self.config);
     }
 
+    pub const Operation = enum {
+        refresh,
+        search,
+    };
+
     pub const SyncOptions = struct {
+        operation: Operation,
         no_confirm: bool = false,
-        refresh: bool = false,
-        targets: ?[]const []const u8 = null,
         needed: bool = false,
+        targets: ?[]const []const u8 = null,
     };
 
     /// Synchronizes and installs packages. Corresponds to `-S [targets]`.
@@ -124,12 +129,12 @@ pub const Pacman = struct {
             }
         }
 
-        if (options.needed) self.config.flags |= c.ALPM_TRANS_FLAG_NEEDED;
-        defer {
-            if (options.needed) self.config.flags &= c.ALPM_TRANS_FLAG_NEEDED;
-        }
+        self.setOrUnsetFlag(options.needed, c.ALPM_TRANS_FLAG_NEEDED);
 
-        self.config.op_s_sync = @intFromBool(options.refresh);
+        switch (options.opeation) {
+            .refresh => self.config.op_s_sync = 1,
+            .search => self.config.op_s_search = 1,
+        }
         self.config.noconfirm = @intFromBool(options.no_confirm);
 
         // Call the actual C function for the sync operation.
@@ -171,6 +176,8 @@ pub const Pacman = struct {
     }
 
     pub const RemoveOptions = struct {
+        recursive: bool = false,
+        no_save: bool = false,
         no_confirm: bool = false,
         targets: ?[]const []const u8 = null,
     };
@@ -190,6 +197,8 @@ pub const Pacman = struct {
         }
 
         self.config.noconfirm = @intFromBool(options.no_confirm);
+        self.setOrUnsetFlag(options.no_save, c.ALPM_TRANS_FLAG_NOSAVE);
+        self.setOrUnsetFlag(options.recursive, c.ALPM_TRANS_FLAG_RECURSE);
 
         // Call the actual C function for the sync operation.
         if (c.pacman_remove(c_targets) != 0) {
@@ -198,6 +207,14 @@ pub const Pacman = struct {
 
         // Clean up the list now that the operation is complete.
         freeList(c_targets);
+    }
+
+    fn setOrUnsetFlag(self: *Pacman, condition: bool, flag: c_int) void {
+        if (condition) {
+            self.config.flags |= flag;
+        } else {
+            self.config.flags &= flag;
+        }
     }
 };
 
@@ -237,8 +254,7 @@ test {
     defer pacman.deinit();
 
     try pacman.sync(.{
-        .refresh = true,
-        .no_confirm = true,
-        .needed = true,
+        .operation = .search,
+        .targets = &.{"cmake"},
     });
 }
