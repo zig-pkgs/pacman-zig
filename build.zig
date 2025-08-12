@@ -57,9 +57,10 @@ pub fn build(b: *std.Build) void {
     });
     translate_c.addIncludePath(pacman_dep.path("src/common"));
     translate_c.addIncludePath(pacman_dep.path("src/pacman"));
+    translate_c.addConfigHeader(config_h);
 
-    const lib_mod = b.addModule("pacman", .{
-        .root_source_file = b.path("src/root.zig"),
+    const lib_mod = b.addModule("Pacman", .{
+        .root_source_file = b.path("src/Pacman.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
