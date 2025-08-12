@@ -7,3 +7,8 @@
 #include "util.h"
 #include "conf.h"
 #include "sighandler.h"
+#include "callback.h"
+#include "compat.h"
+#include <signal.h>
+
+#include <config.h>

@@ -1,0 +1,26 @@
+.{
+    .name = "ark",
+    .description = "A declarative package keeper for Arch Linux, powered by pacman.",
+    .subcommands = .{
+        .{
+            .name = "add",
+            .description = "Add or modify constraints in WORLD and commit changes",
+        },
+        .{
+            .name = "del",
+            .description = "Remove constraints from WORLD and commit changes",
+        },
+        .{
+            .name = "update",
+            .description = "Update repository indexes",
+        },
+        .{
+            .name = "upgrade",
+            .description = "Install upgrades available from repositories",
+        },
+        .{
+            .name = "cache",
+            .description = "Manage the local package cache",
+        },
+    },
+}
