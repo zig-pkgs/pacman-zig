@@ -5,6 +5,10 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const pacman_dep = b.dependency("pacman", .{});
+    const argzon_dep = b.dependency("argzon", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const config_h = b.addConfigHeader(.{
         .style = .{ .cmake = b.path("src/config.h.in") },
@@ -57,17 +61,28 @@ pub fn build(b: *std.Build) void {
     });
     translate_c.addIncludePath(pacman_dep.path("src/common"));
     translate_c.addIncludePath(pacman_dep.path("src/pacman"));
+    translate_c.addConfigHeader(config_h);
 
-    const lib_mod = b.addModule("pacman", .{
-        .root_source_file = b.path("src/root.zig"),
+    const lib_mod = b.addModule("Pacman", .{
+        .root_source_file = b.path("src/Pacman.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
     lib_mod.addConfigHeader(config_h);
     lib_mod.addImport("c", translate_c.createModule());
+    lib_mod.addIncludePath(b.path("src"));
+    lib_mod.addIncludePath(pacman_dep.path("src/pacman"));
     lib_mod.linkSystemLibrary("alpm", .{});
     lib_mod.linkSystemLibrary("archive", .{});
+
+    const exe_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    exe_mod.addImport("Pacman", lib_mod);
+    exe_mod.addImport("argzon", argzon_dep.module("argzon"));
 
     const lib = b.addLibrary(.{
         .linkage = .static,
@@ -90,34 +105,68 @@ pub fn build(b: *std.Build) void {
             "-includeconfig.h",
         },
     });
+    lib.addCSourceFiles(.{
+        .root = b.path("src/Pacman"),
+        .files = &.{
+            "conf.c",
+            "callback.c",
+        },
+        .flags = &.{
+            "-std=gnu99",
+            "-includeconfig.h",
+        },
+    });
     b.installArtifact(lib);
+
+    const exe = b.addExecutable(.{
+        .name = "ark",
+        .root_module = exe_mod,
+    });
+    b.installArtifact(exe);
+
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
+    }
+
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
 
     const lib_unit_tests = b.addTest(.{
         .root_module = lib_mod,
     });
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
+    const exe_unit_tests = b.addTest(.{
+        .root_module = exe_mod,
+    });
+
+    const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
+    test_step.dependOn(&run_exe_unit_tests.step);
 }
 
 const common_src = [_][]const u8{
-    "ini.c",
+    //"ini.c",
     "util-common.c",
 };
 
 const pacman_src = [_][]const u8{
-    "check.c",
-    "conf.c",
-    "database.c",
-    "deptest.c",
-    "files.c",
-    "package.c",
-    "query.c",
-    "remove.c",
-    "sighandler.c",
-    "sync.c",
-    "callback.c",
-    "upgrade.c",
+    //"check.c",
+    //"conf.c",
+    //"database.c",
+    //"deptest.c",
+    //"files.c",
+    //"package.c",
+    //"query.c",
+    //"remove.c",
+    //"sighandler.c",
+    //"sync.c",
+    //"callback.c",
+    //"upgrade.c",
     "util.c",
 };
